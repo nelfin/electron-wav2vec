@@ -1,13 +1,36 @@
 const {app, BrowserWindow} = require('electron')
 const path = require('path')
+const zmq = require('zeromq')
+
+const AUDIO_STREAM = process.env.AUDIO_STREAM || 'ipc:///tmp/audio-in'
+const COMMANDS_STREAM = process.env.COMMANDS_STREAM || 'ipc:///tmp/commands-out'
+
+//var audio_sock = zmq.socket("pub");
+//audio_sock.bindSync(AUDIO_STREAM);
+var commands_sock = zmq.socket("sub");
+commands_sock.subscribe("");
+commands_sock.connect(COMMANDS_STREAM);
 
 function createWindow () {
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    webPreferences: {
+      nodeIntegration: false, // is default value after Electron v5
+      contextIsolation: true, // protect against prototype pollution
+      enableRemoteModule: false, // turn off remote
+      preload: path.join(__dirname, "preload.js") // use a preload script
+    }
+  })
+
+  commands_sock.on('message', (data) => {
+    var msg = JSON.parse(data);
+    console.log(msg);
+    mainWindow.webContents.send('fromMain', msg);
   })
 
   mainWindow.loadFile('index.html')
+  mainWindow.webContents.openDevTools()
 }
 
 app.whenReady().then(() => {
