@@ -39,6 +39,7 @@ let audioCtx;
 
 function onStream(stream) {
     visualise(stream);
+    const sample_ms = 2000;
     const mediaRecorder = new MediaRecorder(stream, {
         mimeType: "audio/webm; codecs=opus"
     });
@@ -50,11 +51,14 @@ function onStream(stream) {
             window.api.send('toMain', buf);
         }
         reader.readAsArrayBuffer(event.data);
-        //window.api.send('toMain', { blob: event.data });
     }
-
-    const sample_ms = 2000;
-    mediaRecorder.start(sample_ms);
+    setInterval(() => {
+        mediaRecorder.stop();
+        mediaRecorder.start();
+        // ^ Yikes!
+        // We do this to trigger a new file each time
+    }, sample_ms);
+    mediaRecorder.start();
 }
 
 function onStreamError(err) {

@@ -3,7 +3,7 @@ import os
 import sys
 import json
 import time
-import socket
+from subprocess import Popen, PIPE
 
 import zmq
 import torch
@@ -52,6 +52,14 @@ class ZeroMQSink(object):
         self._sock.close()
 
 
+def webm_to_wav(webm):
+    # Chromium doesn't support encoding WAV natively so we're stuck with FFMPEG
+    cmd = 'ffmpeg -f webm -c:a opus -i pipe:0 -c:a pcm_s16le -ac 1 -ar 16000 -f wav pipe:1'.split()
+    proc = Popen(cmd, stdin=PIPE, stdout=PIPE)
+    wav, _ = proc.communicate(webm)
+    return wav
+
+
 def main(input_pipe, output_pipe):
     source = ZeroMQSource(input_pipe)
     sink = ZeroMQSink(output_pipe)
@@ -68,7 +76,9 @@ def main(input_pipe, output_pipe):
             # torchaudio seems to expect complete files so send small parts
             buf = io.BytesIO(source.recv())
             start = time.time()
-            waveform, sample_rate = torchaudio.load(buf)
+            debug('[+] converting audio')
+            wav = io.BytesIO(webm_to_wav(buf.read()))
+            waveform, sample_rate = torchaudio.load(wav)
             waveform = waveform[0]  # Wav2Vec2Processor expects mono 16kHz audio
             debug('[+] input_values')
             input_values = processor(waveform, sampling_rate=sample_rate, return_tensors='pt').input_values
