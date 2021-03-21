@@ -20,20 +20,104 @@
 <h1>Hello, world!</h1>
 <p>Wav2Vec2 model: <span id="model-status" class="not-ready">Not Ready</span></p>
 <p>Transcript: <span id="transcript"></span></p>
+<p>
+<button id="start-microphone">Start microphone</button>
+<button id="stop-microphone">Stop microphone</button>
+</p>
+<canvas></canvas>
 <script>
-    console.log('hello from page');
-    window.api.receive('fromMain', (msg) => {
-        console.log(msg);
-        if (msg.isReady || msg.words) {
-            var status = document.getElementById('model-status');
-            status.classList.replace('not-ready', 'ready');
-            status.innerText = 'Ready';
+
+const startButton = document.getElementById('start-microphone');
+const stopButton = document.getElementById('stop-microphone');
+const status = document.getElementById('model-status');
+const transcript = document.getElementById('transcript');
+const canvas = document.querySelector('canvas');
+const drawContext = canvas.getContext('2d');
+
+let audioCtx;
+
+
+function onStream(stream) {
+    visualise(stream);
+    const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm; codecs=opus"
+    });
+    mediaRecorder.ondataavailable = (event) => {
+        console.log(event.data);
+        let reader = new FileReader();
+        reader.onloadend = () => {
+            let buf = new Uint8Array(reader.result);
+            window.api.send('toMain', buf);
         }
-        if (msg.words) {
-            var transcript = document.getElementById('transcript');
-            transcript.innerText = msg.words;
+        reader.readAsArrayBuffer(event.data);
+        //window.api.send('toMain', { blob: event.data });
+    }
+
+    const sample_ms = 2000;
+    mediaRecorder.start(sample_ms);
+}
+
+function onStreamError(err) {
+    console.log('Unable to stream microphone: ' + err);
+}
+
+function getMicrophoneInput() {
+    navigator.mediaDevices
+        .getUserMedia({audio: true})
+        .then(onStream, onStreamError);
+}
+
+function visualise(stream) {
+    if (!audioCtx) {
+        audioCtx = new AudioContext();
+    }
+    const WIDTH = 200;
+    const HEIGHT = 100;
+    const source = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+
+    source.connect(analyser);
+
+    draw();
+
+    function draw() {
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+
+        let times = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteTimeDomainData(times);
+        for (var i = 0; i < times.length; i++) {
+            var value = times[i];
+            var percent = value / 256;
+            var height = HEIGHT * percent;
+            var offset = HEIGHT - height - 1;
+            var barWidth = WIDTH/times.length;
+            drawContext.fillStyle = 'black';
+            drawContext.fillRect(i * barWidth, offset, 1, 1);
         }
-    })
+
+        requestAnimationFrame(draw);
+    }
+}
+
+window.api.receive('fromMain', (msg) => {
+    console.log(msg);
+    if (msg.isReady || msg.words) {
+        status.classList.replace('not-ready', 'ready');
+        status.innerText = 'Ready';
+        startButton.disabled = false;
+    }
+    if (msg.words) {
+        transcript.innerText = msg.words;
+    }
+})
+startButton.onclick = (event) => {
+    getMicrophoneInput();
+}
+stopButton.onclick = (event) => {
+    // TODO
+}
+
 </script>
 </body>
 </html>

@@ -1,12 +1,12 @@
-const {app, BrowserWindow} = require('electron')
+const {app, BrowserWindow, ipcMain} = require('electron')
 const path = require('path')
 const zmq = require('zeromq')
 
 const AUDIO_STREAM = process.env.AUDIO_STREAM || 'ipc:///tmp/audio-in'
 const COMMANDS_STREAM = process.env.COMMANDS_STREAM || 'ipc:///tmp/commands-out'
 
-//var audio_sock = zmq.socket("pub");
-//audio_sock.bindSync(AUDIO_STREAM);
+var audio_sock = zmq.socket("pub");
+audio_sock.connect(AUDIO_STREAM);
 var commands_sock = zmq.socket("sub");
 commands_sock.subscribe("");
 commands_sock.connect(COMMANDS_STREAM);
@@ -27,6 +27,10 @@ function createWindow () {
     var msg = JSON.parse(data);
     console.log(msg);
     mainWindow.webContents.send('fromMain', msg);
+  })
+
+  ipcMain.on('toMain', (event, args) => {
+    audio_sock.send(Buffer.from(args));
   })
 
   mainWindow.loadFile('index.html')

@@ -1,5 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Ref: https://stackoverflow.com/a/59888788/
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(
