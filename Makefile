@@ -26,4 +26,4 @@ run:
 	PYTHON_PID=$$!; \
 	echo "electron=$$ELECTRON_PID python=$$PYTHON_PID"; \
 	wait $$ELECTRON_PID; \
-	kill $$PYTHON_PID
+	kill -- -`ps -o pgid= $$PYTHON_PID | grep -o [0-9]*`
