@@ -38,26 +38,30 @@ class ZeroMQSink(object):
         self._sock = self._ctx.socket(zmq.PUB)
         self._sock.bind(output_stream)
 
+    def signal_ready(self):
+        self._sock.send_json({'isReady': True})
+
     def send(self, start_ts, processing_time, words):
-        jsonl = json.dumps({
+        self._sock.send_json({
             'start_ts': start_ts,
             'processing_time': processing_time,
             'words': words,
         })
-        self._sock.send_json(jsonl)
 
     def close(self):
         self._sock.close()
 
 
 def main(input_pipe, output_pipe):
+    source = ZeroMQSource(input_pipe)
+    sink = ZeroMQSink(output_pipe)
+
     debug('[+] loading processor')
     processor = Wav2Vec2Processor.from_pretrained('facebook/wav2vec2-base-960h')
     debug('[+] loading model')
     model = Wav2Vec2ForCTC.from_pretrained('facebook/wav2vec2-base-960h')
 
-    source = ZeroMQSource(input_pipe)
-    sink = ZeroMQSink(output_pipe)
+    sink.signal_ready()
     try:
         while True:
             debug('>>> waiting for connection')

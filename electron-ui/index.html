@@ -4,13 +4,35 @@
     <meta charset="UTF-8">
     <title>Hello World!</title>
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
+    <style>
+        #model-status {
+            font-weight: bold;
+        }
+        .not-ready {
+            color: darkred;
+        }
+        .ready {
+            color: limegreen;
+        }
+    </style>
 </head>
 <body>
 <h1>Hello, world!</h1>
+<p>Wav2Vec2 model: <span id="model-status" class="not-ready">Not Ready</span></p>
+<p>Transcript: <span id="transcript"></span></p>
 <script>
     console.log('hello from page');
-    window.api.receive('fromMain', (data) => {
-        console.log(data);
+    window.api.receive('fromMain', (msg) => {
+        console.log(msg);
+        if (msg.isReady || msg.words) {
+            var status = document.getElementById('model-status');
+            status.classList.replace('not-ready', 'ready');
+            status.innerText = 'Ready';
+        }
+        if (msg.words) {
+            var transcript = document.getElementById('transcript');
+            transcript.innerText = msg.words;
+        }
     })
 </script>
 </body>
